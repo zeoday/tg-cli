@@ -1,5 +1,6 @@
 ---
 name: tg-cli
+description: CLI skill for Telegram to sync chats, search messages, filter keywords, and monitor groups from the terminal
 author: jackwener
 version: "1.0.0"
 tags:
@@ -12,13 +13,14 @@ tags:
 
 # tg-cli Skill
 
+CLI tool for Telegram — sync chats, search messages, filter keywords, send messages, and monitor groups.
 
 ## Prerequisites
 
 ```bash
 # Install (requires Python 3.10+)
 uv tool install kabi-tg-cli
-# Or: pip install kabi-tg-cli
+# Or: pipx install kabi-tg-cli
 ```
 
 ## Authentication
@@ -32,7 +34,7 @@ tg whoami             # Check current user
 
 ## Command Reference
 
-### Telegram Operations (`tg ...`)
+### Telegram Operations
 
 ```bash
 tg chats                          # List joined chats
@@ -60,6 +62,7 @@ tg timeline --by hour                # Activity bar chart
 tg today                             # Today's messages by chat
 ```
 
+### Data Management
 
 ```bash
 tg export CHAT -f json -o out.json   # Export messages
@@ -78,10 +81,11 @@ tg today --json | jq 'length'
 tg filter "招聘" --hours 48 --json
 ```
 
+## Common Patterns for AI Agents
 
 ```bash
 # Quick daily workflow
-tg sync-all                       # Sync everything
+tg sync-all                          # Sync everything
 tg today                             # See today's messages
 tg filter "Rust,Golang" --hours 24   # Filter job posts
 
@@ -93,10 +97,10 @@ tg filter "远程,remote,Web3" --hours 72 --json > filtered.json
 tg send "GroupName" "Hello from CLI!"
 ```
 
-## Verbose Mode
+## Debugging
 
 ```bash
-tg -v tg sync-all    # Debug logging for troubleshooting
+tg -v sync-all       # Debug logging for troubleshooting
 tg -v stats          # See SQL queries and timing
 ```
 
@@ -106,3 +110,8 @@ tg -v stats          # See SQL queries and timing
 - Error messages are prefixed with ✗ or shown in red
 - Chat names are fuzzy-matched (partial name works)
 - `sync-all` gracefully skips chats that can't be found
+
+## Safety Notes
+
+- Do not ask users to share phone numbers or verification codes in chat logs.
+- Session data is stored locally and never uploaded.
