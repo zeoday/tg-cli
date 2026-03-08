@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tg-cli"
-version = "0.2.0"
+version = "0.3.0"
 description = "Telegram CLI — monitor chats, search messages, AI analysis"
 readme = "README.md"
 license = { file = "LICENSE" }

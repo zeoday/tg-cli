@@ -1,4 +1,4 @@
-"""Query commands — search, stats, top, timeline, today."""
+"""Query commands — search, stats, top, timeline, today, filter."""
 
 from collections import defaultdict
 
@@ -173,3 +173,75 @@ def today(chat: str | None, as_json: bool):
             console.print(f"  [dim]{ts}[/dim] [bold]{sender[:15]}[/bold]: {content}")
 
     console.print(f"\n[green]Total: {len(msgs)} messages today[/green]")
+
+
+@query_group.command("filter")
+@click.argument("keywords")
+@click.option("-c", "--chat", help="Filter by chat name")
+@click.option("--hours", type=int, help="Only search last N hours (default: today)")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def filter_msgs(keywords: str, chat: str | None, hours: int | None, as_json: bool):
+    """Filter messages by KEYWORDS (comma-separated, OR logic).
+
+    Examples:
+        tg filter "Rust,Golang,Java"
+        tg filter "招聘,remote,远程" --hours 48
+        tg filter "Rust" --chat "牛油果" --json
+    """
+    import json
+    import re
+
+    keyword_list = [k.strip() for k in keywords.split(",") if k.strip()]
+    if not keyword_list:
+        console.print("[red]Please provide at least one keyword.[/red]")
+        return
+
+    db = MessageDB()
+    chat_id = db.resolve_chat_id(chat) if chat else None
+
+    if hours:
+        msgs = db.get_recent(chat_id=chat_id, hours=hours, limit=100000)
+    else:
+        msgs = db.get_today(chat_id=chat_id)
+    db.close()
+
+    # Filter messages containing ANY of the keywords (case-insensitive)
+    pattern = re.compile("|".join(re.escape(k) for k in keyword_list), re.IGNORECASE)
+    matched = [m for m in msgs if m.get("content") and pattern.search(m["content"])]
+
+    if not matched:
+        console.print(f"[yellow]No messages matching: {', '.join(keyword_list)}[/yellow]")
+        return
+
+    if as_json:
+        console.print(json.dumps(matched, ensure_ascii=False, indent=2, default=str))
+        return
+
+    # Group by chat
+    grouped: dict[str, list[dict]] = defaultdict(list)
+    for m in matched:
+        grouped[m.get("chat_name") or "Unknown"].append(m)
+
+    for chat_name, chat_msgs in sorted(grouped.items(), key=lambda x: -len(x[1])):
+        console.print(f"\n[bold cyan]═══ {chat_name} ({len(chat_msgs)} matches) ═══[/bold cyan]")
+        for m in chat_msgs:
+            ts = (m.get("timestamp") or "")[:19]
+            sender = m.get("sender_name") or "Unknown"
+            content = (m.get("content") or "")[:300].replace("\n", " ")
+            # Highlight keywords
+            for kw in keyword_list:
+                content = re.sub(
+                    re.escape(kw),
+                    f"[bold red]{kw}[/bold red]",
+                    content,
+                    flags=re.IGNORECASE,
+                )
+            console.print(
+                f"  [dim]{ts}[/dim] [bold]{sender[:15]}[/bold]: {content}"
+            )
+
+    console.print(
+        f"\n[green]Found {len(matched)} messages matching "
+        f"'{', '.join(keyword_list)}' "
+        f"(from {len(msgs)} total)[/green]"
+    )

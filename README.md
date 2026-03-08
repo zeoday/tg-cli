@@ -15,6 +15,9 @@ uv tool install tg-cli
 # Login (first run) — enter phone + verification code
 tg tg chats
 
+# Check who you are
+tg tg whoami
+
 # Sync all groups at once
 tg tg sync-all
 
@@ -23,6 +26,12 @@ tg today
 
 # Search
 tg search "Rust"
+
+# Filter by keywords (comma-separated, OR logic)
+tg filter "Rust,Golang,Java" --hours 48
+
+# Send a message
+tg tg send "GroupName" "Hello!"
 ```
 
 ## Commands
@@ -32,17 +41,20 @@ tg search "Rust"
 | Command | Description |
 |---------|-------------|
 | `tg chats [--type group]` | List joined chats |
+| `tg whoami [--json]` | Show current user info |
 | `tg history CHAT -n 1000` | Fetch historical messages |
 | `tg sync CHAT` | Incremental sync (only new messages) |
 | `tg sync-all` | Sync ALL chats in database (single connection) |
 | `tg listen [CHATS...]` | Real-time listener |
 | `tg info CHAT` | Show detailed chat info |
+| `tg send CHAT "msg"` | Send a message |
 
 ### Query
 
 | Command | Description |
 |---------|-------------|
 | `search KEYWORD [-c NAME] [--json]` | Search stored messages |
+| `filter KEYWORDS [-c NAME] [--hours N]` | Multi-keyword filter (OR logic, highlighted) |
 | `stats` | Show message statistics |
 | `top [-c NAME] [--hours 24]` | Most active senders |
 | `timeline [-c NAME] [--by day\|hour]` | Message activity bar chart |
@@ -56,6 +68,13 @@ tg search "Rust"
 | `purge CHAT [-y]` | Delete stored messages |
 | `analyze CHAT [--hours 24] [-p PROMPT]` | AI analysis (Claude) |
 | `summary [-c NAME] [--hours N]` | AI daily digest |
+
+### Global Options
+
+| Option | Description |
+|--------|-------------|
+| `-v, --verbose` | Enable debug logging |
+| `--version` | Show version |
 
 ## Setup
 
@@ -76,9 +95,9 @@ That's it. Built-in API credentials work for most users.
 ```
 src/tg_cli/
 ├── cli/
-│   ├── main.py      # Click CLI entry point
-│   ├── tg.py        # Telegram: chats, sync, sync-all, listen
-│   ├── query.py     # Query: search, stats, today, top, timeline
+│   ├── main.py      # Click CLI entry point + verbose
+│   ├── tg.py        # Telegram: chats, sync, whoami, send
+│   ├── query.py     # Query: search, filter, stats, today, top, timeline
 │   └── data.py      # Data: export, purge, analyze, summary
 ├── client.py        # Telethon client (connection reuse)
 ├── config.py        # Config (built-in API credentials)

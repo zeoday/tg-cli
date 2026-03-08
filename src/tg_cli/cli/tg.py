@@ -1,4 +1,4 @@
-"""Telegram subcommands — chats, history, sync, sync-all, listen, info."""
+"""Telegram subcommands — chats, history, sync, sync-all, listen, info, whoami, send."""
 
 import asyncio
 
@@ -207,3 +207,62 @@ def tg_info(chat: str):
         table.add_row(k, v)
 
     console.print(table)
+
+
+@tg_group.command("whoami")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def tg_whoami(as_json: bool):
+    """Show current logged-in user info."""
+    import json
+
+    async def _run():
+        async with connect() as client:
+            me = await client.get_me()
+            return me
+
+    me = asyncio.run(_run())
+
+    info = {
+        "id": me.id,
+        "first_name": me.first_name or "",
+        "last_name": me.last_name or "",
+        "username": me.username or "",
+        "phone": me.phone or "",
+    }
+
+    if as_json:
+        console.print(json.dumps(info, ensure_ascii=False, indent=2))
+        return
+
+    name = " ".join(p for p in [me.first_name, me.last_name] if p)
+    table = Table(title=f"👤 {name}")
+    table.add_column("Field", style="bold cyan")
+    table.add_column("Value", style="green")
+    table.add_row("ID", str(me.id))
+    table.add_row("Name", name)
+    if me.username:
+        table.add_row("Username", f"@{me.username}")
+    if me.phone:
+        table.add_row("Phone", f"+{me.phone}")
+
+    console.print(table)
+
+
+@tg_group.command("send")
+@click.argument("chat")
+@click.argument("message")
+def tg_send(chat: str, message: str):
+    """Send a MESSAGE to CHAT (name, username, or numeric ID)."""
+
+    async def _run():
+        async with connect() as client:
+            chat_arg: str | int = chat
+            try:
+                chat_arg = int(chat)
+            except ValueError:
+                pass
+            msg = await client.send_message(chat_arg, message)
+            return msg
+
+    msg = asyncio.run(_run())
+    console.print(f"[green]✓[/green] Message sent (id: {msg.id})")
