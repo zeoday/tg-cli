@@ -1,4 +1,4 @@
-"""Telegram subcommands — chats, history, sync, refresh, listen, info, whoami, send."""
+"""Telegram subcommands — chats, history, sync, refresh, listen, info, whoami, status, send."""
 
 import asyncio
 import time
@@ -301,6 +301,33 @@ def tg_whoami(as_json: bool, as_yaml: bool):
         table.add_row("Phone", f"+{me.phone}")
 
     console.print(table)
+
+
+@tg_group.command("status")
+@structured_output_options
+def tg_status(as_json: bool, as_yaml: bool):
+    """Show Telegram authentication status."""
+
+    async def _run():
+        async with connect() as client:
+            me = await client.get_me()
+            return {
+                "authenticated": True,
+                "id": me.id,
+                "first_name": me.first_name or "",
+                "last_name": me.last_name or "",
+                "username": me.username or "",
+                "phone": me.phone or "",
+            }
+
+    info = asyncio.run(_run())
+    if emit_structured(info, as_json=as_json, as_yaml=as_yaml):
+        return
+
+    name = " ".join(part for part in [info["first_name"], info["last_name"]] if part).strip()
+    console.print(f"[green]✓[/green] Authenticated as [bold]{name or info['id']}[/bold]")
+    if info["username"]:
+        console.print(f"[dim]@{info['username']}[/dim]")
 
 
 @tg_group.command("send")

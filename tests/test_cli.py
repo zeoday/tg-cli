@@ -1,6 +1,7 @@
 """Tests for CLI commands — uses CliRunner with temp DB, no Telegram dependency."""
 
 import json
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -38,6 +39,17 @@ class TestStats:
         data = yaml.safe_load(result.output)
         assert data["total"] == 10
         assert data["chats"][0]["chat_name"] == "TestGroup"
+
+    def test_stats_auto_yaml_when_stdout_is_not_tty(self, runner, populated_db, monkeypatch):
+        db, db_path = populated_db
+        import tg_cli.db as db_mod
+
+        monkeypatch.setattr(db_mod, "get_db_path", lambda: db_path)
+        monkeypatch.setenv("OUTPUT", "auto")
+        result = runner.invoke(cli, ["stats"])
+        assert result.exit_code == 0
+        data = yaml.safe_load(result.output)
+        assert data["total"] == 10
 
 
 class TestSearch:
@@ -231,6 +243,33 @@ class TestRefreshAndSyncFirst:
         data = yaml.safe_load(result.output)
         assert data["new_messages"] == 2
         assert data["updated_chats"] == ["ChatA"]
+
+
+class TestStatus:
+    def test_status_yaml(self, runner, monkeypatch):
+        import tg_cli.cli.tg as tg_mod
+
+        class FakeMe:
+            id = 123
+            first_name = "Alice"
+            last_name = "Smith"
+            username = "alice"
+            phone = "123456"
+
+        class FakeClient:
+            async def get_me(self):
+                return FakeMe()
+
+        @asynccontextmanager
+        async def fake_connect():
+            yield FakeClient()
+
+        monkeypatch.setattr(tg_mod, "connect", fake_connect)
+        result = runner.invoke(cli, ["status", "--yaml"])
+        assert result.exit_code == 0
+        data = yaml.safe_load(result.output)
+        assert data["authenticated"] is True
+        assert data["username"] == "alice"
 
     def test_today_sync_first_refreshes_before_query(self, runner, tmp_path, monkeypatch):
         db_path = tmp_path / "test.db"

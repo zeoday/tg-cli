@@ -3,11 +3,35 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 from collections.abc import Callable
 from typing import Any
 
 import click
 import yaml
+
+_OUTPUT_ENV = "OUTPUT"
+
+
+def default_structured_format(*, as_json: bool, as_yaml: bool) -> str | None:
+    """Resolve explicit flags first, then fall back to env and TTY defaults."""
+    if as_json and as_yaml:
+        raise click.UsageError("Use only one of --json or --yaml.")
+    if as_yaml:
+        return "yaml"
+    if as_json:
+        return "json"
+    output_mode = os.getenv(_OUTPUT_ENV, "auto").strip().lower()
+    if output_mode == "yaml":
+        return "yaml"
+    if output_mode == "json":
+        return "json"
+    if output_mode == "rich":
+        return None
+    if not sys.stdout.isatty():
+        return "yaml"
+    return None
 
 
 def structured_output_options(command: Callable) -> Callable:
@@ -19,13 +43,10 @@ def structured_output_options(command: Callable) -> Callable:
 
 def emit_structured(data: Any, *, as_json: bool, as_yaml: bool) -> bool:
     """Emit structured output and return True when a structured format was used."""
-    if not as_json and not as_yaml:
+    fmt = default_structured_format(as_json=as_json, as_yaml=as_yaml)
+    if fmt is None:
         return False
-
-    if as_json and as_yaml:
-        raise click.UsageError("Use only one of --json or --yaml.")
-
-    click.echo(dump_structured(data, fmt="json" if as_json else "yaml"))
+    click.echo(dump_structured(data, fmt=fmt))
     return True
 
 

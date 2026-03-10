@@ -42,6 +42,8 @@ tg whoami             # Check current user
 ```bash
 tg chats                          # List joined chats
 tg chats --type group             # Filter by type
+tg status                         # Check auth/session status
+tg status --yaml                  # Structured auth status
 tg whoami                         # Show current user info
 tg whoami --yaml                  # Preferred structured output for agents
 tg history CHAT -n 1000           # Fetch historical messages
@@ -86,10 +88,14 @@ AI agents should prefer `--yaml` unless a strict JSON parser is required:
 
 ```bash
 tg search "Rust" --yaml
+tg status --yaml
 tg whoami --yaml
 tg today --yaml
 tg filter "招聘" --hours 48 --yaml
 ```
+
+When stdout is not a TTY, `tg-cli` defaults to YAML automatically.
+Use `OUTPUT=yaml|json|rich|auto` to override the default output mode.
 
 ## Refresh Model
 

@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 # Set env vars before importing
 os.environ.setdefault("TG_API_ID", "0")
 os.environ.setdefault("TG_API_HASH", "test")
+os.environ.setdefault("OUTPUT", "rich")
 
 from tg_cli.db import MessageDB
 
