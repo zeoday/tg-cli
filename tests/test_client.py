@@ -23,12 +23,23 @@ class FakeDialog:
 
 
 @dataclass
+class FakeSender:
+    id: int
+    first_name: str = "User"
+    last_name: str = ""
+    username: str | None = None
+
+
+@dataclass
 class FakeMessage:
     id: int
     sender_id: int
     text: str
     date: datetime
     message: str | None = None
+
+    async def get_sender(self):
+        return FakeSender(id=self.sender_id)
 
 
 class FakeClient:
@@ -47,10 +58,6 @@ class FakeClient:
     async def iter_dialogs(self):
         for dialog in self._dialogs:
             yield dialog
-
-    async def iter_participants(self, entity):
-        if False:
-            yield None
 
     async def iter_messages(self, entity, limit: int, min_id: int = 0):
         messages = self._messages_by_chat.get(entity.id, [])
@@ -83,7 +90,7 @@ async def test_fetch_history_returns_inserted_count(db):
         timestamp=datetime.now(timezone.utc),
     )
 
-    inserted = await fetch_history(client, 100, db=db, limit=10)
+    inserted = await fetch_history(client, 100, db=db, limit=10, batch_delay=0)
     assert inserted == 2
 
 

@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from telethon import TelegramClient, events
+from telethon.errors import FloodWaitError
 from telethon.tl.types import Channel, Chat, User
 
 from .config import (
@@ -22,6 +23,16 @@ from .console import console
 from .db import MessageDB
 
 log = logging.getLogger(__name__)
+
+# Telegram Desktop 5.x fingerprint — makes the session look like a real client
+_DEVICE_MODEL = "Desktop"
+_SYSTEM_VERSION = "macOS 15.3"
+_APP_VERSION = "5.12.1"
+_LANG_CODE = "en"
+_SYSTEM_LANG_CODE = "en-US"
+
+# Progressive sync: limit for first-time chat sync (no prior messages in DB)
+_FIRST_SYNC_LIMIT = 500
 
 
 def _get_sender_name(sender: User | Channel | Chat | None) -> str | None:
@@ -52,7 +63,16 @@ async def connect() -> AsyncGenerator[TelegramClient, None]:
             "  Get your own at https://my.telegram.org and set TG_API_ID / TG_API_HASH.[/yellow]"
         )
 
-    c = TelegramClient(get_session_path(), api_id, api_hash)
+    c = TelegramClient(
+        get_session_path(),
+        api_id,
+        api_hash,
+        device_model=_DEVICE_MODEL,
+        system_version=_SYSTEM_VERSION,
+        app_version=_APP_VERSION,
+        lang_code=_LANG_CODE,
+        system_lang_code=_SYSTEM_LANG_CODE,
+    )
     await c.start()
     try:
         yield c
@@ -135,6 +155,7 @@ async def fetch_history(
     db: MessageDB | None = None,
     on_progress: Callable[[int], None] | None = None,
     min_id: int = 0,
+    batch_delay: float = 0.5,
 ) -> int:
     """Fetch historical messages from a chat and store them in the database.
 
@@ -145,6 +166,8 @@ async def fetch_history(
         db: Database instance (creates one if None)
         on_progress: Callback invoked every batch with current count
         min_id: Only fetch messages with id > min_id (for incremental sync)
+        batch_delay: Seconds to sleep between DB write batches (with ±30% jitter).
+            Throttles iter_messages pagination. Set to 0 to disable.
     """
     owns_db = db is None
     if db is None:
@@ -157,13 +180,8 @@ async def fetch_history(
         )
         chat_id = entity.id
 
-        # Pre-fetch participants for sender name cache
+        # Lazy sender name resolution — avoids risky iter_participants API
         sender_cache: dict[int, str] = {}
-        try:
-            async for user in client.iter_participants(entity):
-                sender_cache[user.id] = _get_sender_name(user) or str(user.id)
-        except Exception as e:
-            log.debug("Failed to pre-fetch participants: %s", e)
 
         batch: list[dict] = []
         inserted_count = 0
@@ -173,7 +191,20 @@ async def fetch_history(
             if msg.text is None and msg.message is None:
                 continue
 
-            sender_name = sender_cache.get(msg.sender_id) if msg.sender_id else None
+            # Resolve sender name lazily from message metadata
+            sender_name = None
+            if msg.sender_id:
+                if msg.sender_id in sender_cache:
+                    sender_name = sender_cache[msg.sender_id]
+                else:
+                    try:
+                        sender = await msg.get_sender()
+                        sender_name = _get_sender_name(sender)
+                    except Exception:
+                        sender_name = None
+                    if sender_name:
+                        sender_cache[msg.sender_id] = sender_name
+
             content = msg.text or msg.message or ""
             ts = msg.date
             if ts and ts.tzinfo is None:
@@ -196,12 +227,22 @@ async def fetch_history(
                 batch.clear()
                 if on_progress:
                     on_progress(inserted_count)
+                # Anti-ban: throttle between pagination batches
+                if batch_delay > 0:
+                    jitter = batch_delay * random.uniform(-0.3, 0.3)
+                    await asyncio.sleep(batch_delay + jitter)
 
         # Flush remaining
         if batch:
             inserted_count += db.insert_batch(batch)
 
         return inserted_count
+    except FloodWaitError as e:
+        console.print(
+            f"[yellow]⚠ Telegram rate limit hit, waiting {e.seconds}s...[/yellow]"
+        )
+        await asyncio.sleep(e.seconds + random.uniform(1, 3))
+        return inserted_count if "inserted_count" in dir() else 0
     finally:
         if owns_db:
             db.close()
@@ -246,17 +287,29 @@ async def sync_all(
         chat_name = chat_info.get("chat_name") or dialog_name or str(chat_id)
         last_id = db.get_last_msg_id(chat_id) or 0
 
+        # Progressive sync: use lower limit for first-time chat sync
+        effective_limit = limit_per_chat
+        if last_id == 0 and limit_per_chat > _FIRST_SYNC_LIMIT:
+            effective_limit = _FIRST_SYNC_LIMIT
+            log.debug("First sync for %s, limiting to %d messages", chat_name, effective_limit)
+
         try:
             count = await fetch_history(
                 client,
                 entity,
-                limit=limit_per_chat,
+                limit=effective_limit,
                 db=db,
                 min_id=last_id,
             )
             results[chat_name] = count
             if on_chat_done:
                 on_chat_done(chat_name, count, chat_info.get("msg_count", 0) + count)
+        except FloodWaitError as e:
+            console.print(
+                f"  [yellow]⚠ {chat_name}: rate limited, waiting {e.seconds}s...[/yellow]"
+            )
+            await asyncio.sleep(e.seconds + random.uniform(1, 3))
+            results[chat_name] = 0
         except Exception as e:
             console.print(f"  [red]✗ {chat_name}: {e}[/red]")
             results[chat_name] = 0
