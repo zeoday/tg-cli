@@ -68,6 +68,11 @@ def get_api_hash() -> str:
     return _DEFAULT_API_HASH
 
 
+def is_default_api_id() -> bool:
+    """Return True if the user has NOT set a custom TG_API_ID."""
+    return not os.environ.get("TG_API_ID", "")
+
+
 def get_session_name() -> str:
     return os.environ.get("TG_SESSION_NAME", "tg_cli")
 

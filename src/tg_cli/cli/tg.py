@@ -150,8 +150,20 @@ def tg_sync(chat: str, limit: int, as_json: bool, as_yaml: bool):
 
 @tg_group.command("sync-all")
 @click.option("-n", "--limit", default=5000, help="Max messages per chat")
+@click.option(
+    "--delay",
+    default=2.0,
+    show_default=True,
+    help="Seconds between chat syncs (anti-ban). Set 0 to disable.",
+)
+@click.option(
+    "--max-chats",
+    default=None,
+    type=int,
+    help="Max number of chats to sync per run (default: all)",
+)
 @structured_output_options
-def tg_sync_all(limit: int, as_json: bool, as_yaml: bool):
+def tg_sync_all(limit: int, delay: float, max_chats: int | None, as_json: bool, as_yaml: bool):
     """Sync all currently available Telegram dialogs with a single connection."""
 
     async def _run():
@@ -167,7 +179,9 @@ def tg_sync_all(limit: int, as_json: bool, as_yaml: bool):
 
             on_chat_done = _on_chat_done
 
-        return await sync_all_dialogs(limit=limit, on_chat_done=on_chat_done)
+        return await sync_all_dialogs(
+            limit=limit, on_chat_done=on_chat_done, delay=delay, max_chats=max_chats
+        )
 
     results = asyncio.run(_run())
     total_new = sum(results.values())
@@ -179,8 +193,20 @@ def tg_sync_all(limit: int, as_json: bool, as_yaml: bool):
 
 @tg_group.command("refresh")
 @click.option("-n", "--limit", default=5000, help="Max messages per chat")
+@click.option(
+    "--delay",
+    default=2.0,
+    show_default=True,
+    help="Seconds between chat syncs (anti-ban). Set 0 to disable.",
+)
+@click.option(
+    "--max-chats",
+    default=None,
+    type=int,
+    help="Max number of chats to sync per run (default: all)",
+)
 @structured_output_options
-def tg_refresh(limit: int, as_json: bool, as_yaml: bool):
+def tg_refresh(limit: int, delay: float, max_chats: int | None, as_json: bool, as_yaml: bool):
     """Refresh the local cache from all current Telegram dialogs."""
 
     async def _run():
@@ -196,7 +222,9 @@ def tg_refresh(limit: int, as_json: bool, as_yaml: bool):
 
             on_chat_done = _on_chat_done
 
-        return await sync_all_dialogs(limit=limit, on_chat_done=on_chat_done)
+        return await sync_all_dialogs(
+            limit=limit, on_chat_done=on_chat_done, delay=delay, max_chats=max_chats
+        )
 
     results = asyncio.run(_run())
     total_new = sum(results.values())

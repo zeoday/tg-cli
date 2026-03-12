@@ -101,9 +101,30 @@ async def test_sync_all_discovers_dialogs_from_client(db):
         },
     )
 
-    results = await sync_all(client, db, limit_per_chat=10)
+    results = await sync_all(client, db, limit_per_chat=10, delay=0)
     assert results == {"Group A": 1, "Group B": 1}
     assert db.count() == 2
+
+
+@pytest.mark.asyncio
+async def test_sync_all_max_chats_limits_synced_dialogs(db):
+    dialogs = [
+        FakeDialog(entity=FakeEntity(id=100, title="Group A"), name="Group A"),
+        FakeDialog(entity=FakeEntity(id=200, title="Group B"), name="Group B"),
+        FakeDialog(entity=FakeEntity(id=300, title="Group C"), name="Group C"),
+    ]
+    client = FakeClient(
+        dialogs=dialogs,
+        messages_by_chat={
+            100: [FakeMessage(id=1, sender_id=1, text="hello", date=datetime.now(timezone.utc))],
+            200: [FakeMessage(id=1, sender_id=2, text="world", date=datetime.now(timezone.utc))],
+            300: [FakeMessage(id=1, sender_id=3, text="bye", date=datetime.now(timezone.utc))],
+        },
+    )
+
+    results = await sync_all(client, db, limit_per_chat=10, delay=0, max_chats=1)
+    assert len(results) == 1
+    assert db.count() == 1
 
 
 @pytest.mark.asyncio

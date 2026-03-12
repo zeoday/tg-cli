@@ -184,6 +184,27 @@ git clone git@github.com:jackwener/tg-cli.git .agents/skills/tg-cli
 clawhub install tg-cli
 ```
 
+## ⚠️ Account Safety
+
+tg-cli uses your personal Telegram account via MTProto. To reduce the risk of account restrictions:
+
+1. **Get your own API credentials** — Go to [my.telegram.org](https://my.telegram.org), create an app, and set:
+   ```bash
+   export TG_API_ID=12345678
+   export TG_API_HASH="your_api_hash_here"
+   ```
+   The default `api_id=2040` (Telegram Desktop) is shared by many third-party tools and may attract stricter scrutiny.
+
+2. **Limit sync frequency** — Avoid running `tg refresh` more than 1–2 times per day.
+
+3. **Use `--delay` and `--max-chats`** — Both `refresh` and `sync-all` support:
+   - `--delay 3.0` — seconds between each chat sync (default: 2.0, with ±20% jitter)
+   - `--max-chats 30` — only sync the first N chats per run
+
+4. **Prefer established accounts** — New or rarely-used accounts are more likely to be flagged.
+
+5. **Prefer read-only operations** — `tg send` carries higher risk than read commands.
+
 ## Troubleshooting
 
 - `No messages today`
@@ -365,6 +386,27 @@ git clone git@github.com:jackwener/tg-cli.git .agents/skills/tg-cli
 ```bash
 clawhub install tg-cli
 ```
+
+## ⚠️ 账号安全
+
+`tg-cli` 使用你的个人 Telegram 账号走 MTProto。为了降低账号被风控的风险：
+
+1. **申请自己的 API 凭证** — 前往 [my.telegram.org](https://my.telegram.org)，创建应用后设置：
+   ```bash
+   export TG_API_ID=12345678
+   export TG_API_HASH="your_api_hash_here"
+   ```
+   默认的 `api_id=2040`（Telegram Desktop）被大量第三方工具共用，风控更严格。
+
+2. **控制同步频率** — 避免每天执行 `tg refresh` 超过 1-2 次。
+
+3. **使用 `--delay` 和 `--max-chats`** — `refresh` 和 `sync-all` 支持：
+   - `--delay 3.0` — 每个 chat 同步间隔秒数（默认 2.0，±20% 随机抖动）
+   - `--max-chats 30` — 每次最多同步前 N 个 chat
+
+4. **优先使用老号** — 新注册或长期未活跃的账号更容易被标记。
+
+5. **优先只读操作** — `tg send` 比读取类命令风险更高。
 
 ## 常见问题
 

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import random
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -14,6 +16,7 @@ from .config import (
     get_api_hash,
     get_api_id,
     get_session_path,
+    is_default_api_id,
 )
 from .console import console
 from .db import MessageDB
@@ -31,11 +34,23 @@ def _get_sender_name(sender: User | Channel | Chat | None) -> str | None:
     return getattr(sender, "title", None) or str(sender.id)
 
 
+_default_api_warned = False
+
+
 @asynccontextmanager
 async def connect() -> AsyncGenerator[TelegramClient, None]:
     """Async context manager for Telegram client — single connection, reuse within scope."""
+    global _default_api_warned
     api_id = get_api_id()
     api_hash = get_api_hash()
+
+    if not _default_api_warned and is_default_api_id():
+        _default_api_warned = True
+        console.print(
+            "[yellow]⚠ Using default Telegram Desktop API credentials (api_id=2040).\n"
+            "  This increases the risk of account restrictions.\n"
+            "  Get your own at https://my.telegram.org and set TG_API_ID / TG_API_HASH.[/yellow]"
+        )
 
     c = TelegramClient(get_session_path(), api_id, api_hash)
     await c.start()
@@ -197,11 +212,16 @@ async def sync_all(
     db: MessageDB,
     limit_per_chat: int = 5000,
     on_chat_done: Callable[[str, int, int], None] | None = None,
+    delay: float = 2.0,
+    max_chats: int | None = None,
 ) -> dict[str, int]:
     """Sync all chats in the database using a single connection.
 
     Args:
         on_chat_done: Callback(chat_name, new_count, total_in_chat)
+        delay: Seconds to wait between each chat sync (with ±20% jitter).
+            Set to 0 to disable. Helps avoid triggering Telegram rate limits.
+        max_chats: Max number of chats to sync per run. None = no limit.
 
     Returns:
         dict mapping chat_name to new message count
@@ -216,7 +236,12 @@ async def sync_all(
     except Exception as e:
         log.debug("Failed to build dialog cache: %s", e)
 
-    for chat_id, (entity, dialog_name) in dialog_cache.items():
+    items = list(dialog_cache.items())
+    if max_chats is not None:
+        items = items[:max_chats]
+    total = len(items)
+
+    for idx, (chat_id, (entity, dialog_name)) in enumerate(items):
         chat_info = stored_chats.get(chat_id, {})
         chat_name = chat_info.get("chat_name") or dialog_name or str(chat_id)
         last_id = db.get_last_msg_id(chat_id) or 0
@@ -235,6 +260,11 @@ async def sync_all(
         except Exception as e:
             console.print(f"  [red]✗ {chat_name}: {e}[/red]")
             results[chat_name] = 0
+
+        # Anti-ban: sleep with random jitter between chat syncs
+        if delay > 0 and idx < total - 1:
+            jitter = delay * random.uniform(-0.2, 0.2)
+            await asyncio.sleep(delay + jitter)
 
     return results
 
