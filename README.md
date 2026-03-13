@@ -4,6 +4,8 @@
 [![PyPI](https://img.shields.io/pypi/v/kabi_tg_cli)](https://pypi.org/project/kabi-tg-cli/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
+> **PyPI package name:** [`kabi-tg-cli`](https://pypi.org/project/kabi-tg-cli/) — install with `uv tool install kabi-tg-cli`
+
 Telethon-powered Telegram CLI for local-first sync, search, export, and agent-friendly retrieval.
 
 ## More Projects

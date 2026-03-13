@@ -2,7 +2,7 @@
 name: tg-cli
 description: CLI skill for Telegram to sync chats, search messages, filter keywords, and monitor groups from the terminal
 author: jackwener
-version: "1.0.0"
+version: "0.5.3"
 tags:
   - telegram
   - tg
