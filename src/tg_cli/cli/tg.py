@@ -22,8 +22,6 @@ from ._output import (
 from ._sync import sync_all_dialogs, sync_chat_dialog
 
 
-
-
 def _telegram_user_payload(me) -> dict[str, str | int]:
     """Normalize Telegram user info for structured agent output."""
     name = " ".join(part for part in [me.first_name, me.last_name] if part).strip()

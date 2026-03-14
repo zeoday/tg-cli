@@ -635,7 +635,6 @@ class TestSend:
 
 class TestChats:
     def test_chats_rich(self, runner, monkeypatch):
-        from telethon.tl.types import User
 
         import tg_cli.cli.tg as tg_mod
 

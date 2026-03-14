@@ -1,7 +1,6 @@
 """Tests for _output.py helpers."""
 
 import json
-from unittest.mock import patch
 
 import click
 import pytest
